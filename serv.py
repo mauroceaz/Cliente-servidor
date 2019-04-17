@@ -3,11 +3,28 @@ import os
 import subprocess
 
 HOST = '127.0.0.1'
-PORT = 5000
+PORT = 5001
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 orig = (HOST, PORT)
 tcp.bind(orig)
 tcp.listen(1)
+
+def contentType(arq):
+    ext = arq.split(".")
+    if ext[-1] == "html":
+        return "text/HTML"
+    elif ext[-1] == "txt":
+        return "text/txt"
+    elif ext[-1] == "jpg":
+        return "image/jpg"
+    elif ext[-1] == "png":
+        return "image/png"
+    elif ext[-1] == "gif":
+        return "image/gif"
+    elif ext[-1] == "ico":
+        return "image/ico"
+    elif ext[-1] == "css":
+        return "text/css"
 
 while True:
     con, cliente = tcp.accept()
@@ -32,5 +49,27 @@ while True:
             for i in arq.readlines():
                 con.send(i.encode())
             arq.close()
+
+        elif msgd[:5] == 'GET /':
+            msgd = msgd[5:].split(" ")
+            type = contentType(msgd[0])
+            try:
+                arq = open(msgd[0],'rb')
+            except FileNotFoundError:
+                print("404 Not Found")
+            arq2 = arq.read()
+            varl=len(arq2)
+            header="HTTP/1.1 200 OK\r\n"
+            header1="Content-Type: {}\r\n".format(type)
+            header2="Content-Length: {}\r\n".format(varl)
+            blank="\r\n"
+            sendt=header.encode()+header1.encode()+header2.encode()+blank.encode()+arq2
+            con.send(sendt)
+
+        elif msgd[:7] == 'http://':
+            url = msgd[7:]
+            ca = (url , 5010)
+            con.connect(ca)
+
     print ('Finalizando conexao do cliente', cliente)
     con.close()
