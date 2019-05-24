@@ -2,17 +2,18 @@ import socket
 import os
 import subprocess
 
-HOST = '127.0.0.1'
+HOST = 'localhost'
 PORT = 5001
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 orig = (HOST, PORT)
+
 tcp.bind(orig)
 tcp.listen(1)
 
 def contentType(arq):
     ext = arq.split(".")
     if ext[-1] == "html":
-        return "text/HTML"
+        return "text/html"
     elif ext[-1] == "txt":
         return "text/txt"
     elif ext[-1] == "jpg":
@@ -26,12 +27,17 @@ def contentType(arq):
     elif ext[-1] == "css":
         return "text/css"
 
+def save_html(content, filename):
+    f = open(filename, 'w')
+    f.write(content)
+    f.close()
+
 while True:
     con, cliente = tcp.accept()
     print ('Concetado por', cliente)
 
     while True:
-        msg = con.recv(2048)
+        msg = con.recv(4096)
         if not msg: break
         print (cliente, msg.decode())
         msgd = msg.decode()
@@ -65,11 +71,25 @@ while True:
             blank="\r\n"
             sendt=header.encode()+header1.encode()+header2.encode()+blank.encode()+arq2
             con.send(sendt)
+            arq.close()
 
-        elif msgd[:7] == 'http://':
-            url = msgd[7:]
-            ca = (url , 5010)
-            con.connect(ca)
+        elif msgd[:5] == 'file ':
+            msgd = msgd[5:]
+            con.close()
+            tcp.close()
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_address = (msgd, 80)
+            client_socket.connect(server_address)
+            request_header = 'GET / HTTP/1.1\r\nHost: {}\r\nConnection: keep-alive\r\n Content-Length: 0\r\n\r\n'.format(msgd)
+            client_socket.send(request_header.encode())
+            while True:
+                recv = client_socket.recv(4096)
+                print (recv.decode())
+                if not recv:
+                    break
+                recvd = recv.decode()
+                save_html(recvd, msgd)
+            client_socket.close()
 
     print ('Finalizando conexao do cliente', cliente)
     con.close()
